@@ -26,6 +26,7 @@ import {
 import {
   classifyWaste,
   validateImageForClassification,
+  ClassificationResult,
 } from "@/lib/ml-integration";
 import { useAuth } from "../App";
 import { useAuth as useSbAuth } from "@/lib/supabase";
@@ -76,25 +77,25 @@ const categoryMeta: Record<
 };
 
 const WasteClassification: React.FC = () => {
-  const { user, updateUser } = useAuth();
-  const { user: sbUser } = useSbAuth();
-  // we now use classifyWaste from ml-integration
+  const { user, updateUser } = useAuth(); // your app auth context
+  const { user: sbUser } = useSbAuth(); // optional Supabase auth
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ClassificationResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [manualCategory, setManualCategory] = useState<ManualCategory | null>(
     null,
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const modelReady = true; // backend based
+  const modelReady = true; // backend-based readiness; you can replace with real check
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (processing) return;
       const file = acceptedFiles?.[0];
       if (!file) return;
+
       const validation = validateImageForClassification(file);
       if (!validation.isValid) {
         alert(validation.error);
@@ -109,19 +110,20 @@ const WasteClassification: React.FC = () => {
         const classification = await classifyWaste(file);
         setResult(classification);
 
-        const type = (classification?.type ||
-          "recyclable") as keyof typeof defaults.pointsPerClassification;
+        // award points: read default mapping and persist if supabase user present
+        const type = (classification?.type || "recyclable") as keyof typeof defaults.pointsPerClassification;
         const pts = defaults.pointsPerClassification[type] ?? 10;
+
         try {
           if (sbUser?.id) {
             await awardPoints(sbUser.id, pts, `Classified ${type} waste`);
           } else {
-            // fallback if Supabase not available
+            // fallback to local update if no supabase user
             updateUser?.({ points: (user?.points || 0) + pts });
           }
         } catch (e) {
-          // awardPoints might fail; still update local UI
           console.warn("Failed to persist points:", e);
+          // still update local UI
           updateUser?.({ points: (user?.points || 0) + (defaults.pointsPerClassification[type] ?? 10) });
         }
       } catch (e) {
@@ -179,14 +181,9 @@ const WasteClassification: React.FC = () => {
               <input {...getInputProps()} />
               <Camera className="w-10 h-10 mb-3 text-eco-primary" />
               <p className="font-medium">Drag and drop an image here</p>
-              <p className="text-sm text-muted-foreground">
-                or click to browse
-              </p>
+              <p className="text-sm text-muted-foreground">or click to browse</p>
               <div className="mt-4 flex gap-3">
-                <Button
-                  onClick={() => inputRef.current?.click()}
-                  variant="outline"
-                >
+                <Button onClick={() => inputRef.current?.click()} variant="outline">
                   <Upload className="w-4 h-4 mr-2" />
                   Choose File
                 </Button>
@@ -211,15 +208,10 @@ const WasteClassification: React.FC = () => {
                     try {
                       const classification = await classifyWaste(file);
                       setResult(classification);
-                      const type = (classification?.type ||
-                        "recyclable") as keyof typeof defaults.pointsPerClassification;
+                      const type = (classification?.type || "recyclable") as keyof typeof defaults.pointsPerClassification;
                       const pts = defaults.pointsPerClassification[type] ?? 10;
                       if (sbUser?.id) {
-                        await awardPoints(
-                          sbUser.id,
-                          pts,
-                          `Classified ${type} waste`,
-                        );
+                        await awardPoints(sbUser.id, pts, `Classified ${type} waste`);
                       } else {
                         updateUser?.({ points: (user?.points || 0) + pts });
                       }
@@ -272,9 +264,7 @@ const WasteClassification: React.FC = () => {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span>Confidence</span>
-                        <span className="font-medium">
-                          {result?.confidence ?? "--"}%
-                        </span>
+                        <span className="font-medium">{result?.confidence ?? "--"}%</span>
                       </div>
                       <Progress value={result?.confidence || 0} />
                       {result?.processingTime && (
@@ -293,9 +283,7 @@ const WasteClassification: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Manual Category Selection</CardTitle>
-            <CardDescription>
-              Pick a category if you already know it
-            </CardDescription>
+            <CardDescription>Pick a category if you already know it</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -308,11 +296,7 @@ const WasteClassification: React.FC = () => {
                   <Button
                     key={cat}
                     variant={active ? "default" : "outline"}
-                    className={
-                      active
-                        ? "bg-gradient-to-r from-eco-primary to-eco-secondary text-white"
-                        : ""
-                    }
+                    className={active ? "bg-gradient-to-r from-eco-primary to-eco-secondary text-white" : ""}
                     onClick={() => setManualCategory(cat)}
                   >
                     <Icon className="w-4 h-4 mr-2" />
@@ -354,34 +338,20 @@ const WasteClassification: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Summary</CardTitle>
-                <CardDescription>
-                  Your action helps keep our planet clean.
-                </CardDescription>
+                <CardDescription>Your action helps keep our planet clean.</CardDescription>
               </CardHeader>
               <CardContent className="grid sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-lg bg-muted/30">
-                  <div className="text-xs text-muted-foreground">
-                    Detected Type
-                  </div>
-                  <div className="text-lg font-semibold capitalize">
-                    {result.type}
-                  </div>
+                  <div className="text-xs text-muted-foreground">Detected Type</div>
+                  <div className="text-lg font-semibold capitalize">{result.type}</div>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30">
-                  <div className="text-xs text-muted-foreground">
-                    Confidence
-                  </div>
-                  <div className="text-lg font-semibold">
-                    {result.confidence}%
-                  </div>
+                  <div className="text-xs text-muted-foreground">Confidence</div>
+                  <div className="text-lg font-semibold">{result.confidence}%</div>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30">
-                  <div className="text-xs text-muted-foreground">
-                    Points Earned
-                  </div>
-                  <div className="text-lg font-semibold">
-                    {user?.points ? 10 : 10}
-                  </div>
+                  <div className="text-xs text-muted-foreground">Points Earned</div>
+                  <div className="text-lg font-semibold">{user?.points ? 10 : 10}</div>
                 </div>
               </CardContent>
             </Card>
