@@ -27,7 +27,7 @@ export const config = {
 
   // Machine Learning and AI services
   ml: {
-    apiEndpoint: import.meta.env.VITE_ML_API_ENDPOINT || "",
+    apiEndpoint: import.meta.env.VITE_ML_API_ENDPOINT || "/api/predict",
     apiKey: import.meta.env.VITE_ML_API_KEY || "",
     tensorflowModelUrl: import.meta.env.VITE_TENSORFLOW_MODEL_URL || "",
   },

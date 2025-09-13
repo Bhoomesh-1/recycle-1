@@ -56,18 +56,61 @@ export async function classifyWaste(file: File): Promise<ClassificationResult> {
 
 function mapBackendClass(predicted: string): ClassificationResult["type"] {
   const key = (predicted || "").toLowerCase().trim();
-  switch (key) {
-    case "organic":
-      return "biodegradable";
-    case "recyclable":
-      return "recyclable";
-    case "hazardous":
-      return "hazardous";
-    case "non-recyclable":
-      return "hazardous";
-    default:
-      return "recyclable";
+
+  // Normalize common synonyms from external services
+  if ([
+    "bio",
+    "biodegradable",
+    "organic",
+    "organic waste",
+    "food",
+    "compostable",
+  ].includes(key)) {
+    return "biodegradable";
   }
+
+  if (
+    [
+      "recyclable",
+      "recycle",
+      "plastic",
+      "paper",
+      "cardboard",
+      "glass",
+      "metal",
+      "aluminum",
+      "tin",
+      "can",
+      "bottle",
+    ].includes(key)
+  ) {
+    return "recyclable";
+  }
+
+  if (
+    [
+      "hazardous",
+      "non-recyclable",
+      "non recyclable",
+      "ewaste",
+      "e-waste",
+      "battery",
+      "batteries",
+      "chemical",
+      "medical",
+      "biohazard",
+      "toxic",
+    ].includes(key)
+  ) {
+    return "hazardous";
+  }
+
+  // Fallback based on substrings
+  if (key.includes("recycl")) return "recyclable";
+  if (key.includes("hazard") || key.includes("non")) return "hazardous";
+  if (key.includes("organic") || key.includes("bio")) return "biodegradable";
+
+  return "recyclable";
 }
 
 export function validateImageForClassification(file: File) {
