@@ -7,8 +7,23 @@ export const handlePredict: RequestHandler = async (req, res) => {
     const external = process.env.EXTERNAL_PREDICT_URL;
     if (external) {
       const headers: Record<string, string> = {};
-      const ct = req.headers["content-type"];
-      if (ct && typeof ct === "string") headers["content-type"] = ct;
+      const hopByHop = new Set([
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "transfer-encoding",
+        "upgrade",
+        "host",
+      ]);
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (!k) continue;
+        if (hopByHop.has(k.toLowerCase())) continue;
+        if (typeof v === "string") headers[k] = v;
+        else if (Array.isArray(v)) headers[k] = v.join(", ");
+      }
 
       const resp = await fetch(external, {
         method: "POST",
@@ -18,6 +33,7 @@ export const handlePredict: RequestHandler = async (req, res) => {
         // Node.js fetch requires duplex when streaming a request body
         // @ts-expect-error Node fetch option
         duplex: "half",
+        redirect: "follow",
       });
 
       // Forward status and body transparently
@@ -29,8 +45,8 @@ export const handlePredict: RequestHandler = async (req, res) => {
         try {
           const json = JSON.parse(buf.toString("utf-8"));
           return res.json(json);
-        } catch {
-          // fallthrough to raw
+        } catch (e) {
+          console.warn("Proxy JSON parse failed, returning raw buffer", (e as any)?.message || e);
         }
       }
       return res.send(buf);
