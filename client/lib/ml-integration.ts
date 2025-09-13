@@ -16,7 +16,7 @@ export async function classifyWaste(file: File): Promise<ClassificationResult> {
     (import.meta as any).env?.VITE_ML_API_ENDPOINT ||
     (typeof process !== "undefined" &&
       (process as any)?.env?.NEXT_PUBLIC_BACKEND_URL) ||
-    "http://localhost:8000/predict"; // local fallback for dev
+    "/api/predict"; // default to dev server's API route
 
   const formData = new FormData();
   formData.append("file", file);

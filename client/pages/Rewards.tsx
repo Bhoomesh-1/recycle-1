@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -86,7 +87,8 @@ interface UserTransaction {
 }
 
 // Mock data
-const voucherCategories = {
+type Category = { title: string; icon: string };
+const voucherCategories: Record<string, Category> = {
   food: { title: "Food & Dining", icon: "🍕" },
   shopping: { title: "Shopping", icon: "🛍️" },
   entertainment: { title: "Entertainment", icon: "🎬" },
@@ -626,7 +628,7 @@ export default function Rewards() {
   };
 
   // Animation variants
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -637,12 +639,12 @@ export default function Rewards() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.5, ease: "easeOut" },
+      transition: { duration: 0.5 },
     },
   };
 
@@ -769,22 +771,22 @@ export default function Rewards() {
                 >
                   All Categories
                 </Button>
-                {Object.entries(voucherCategories || fallbackCategories).map(
-                  ([key, category]) => (
-                    <Button
-                      key={key}
-                      variant={selectedCategory === key ? "default" : "outline"}
-                      onClick={() => setSelectedCategory(key)}
-                      className={`${
-                        selectedCategory === key
-                          ? "bg-red-600 text-white"
-                          : "bg-slate-800/50 text-gray-300 hover:text-white"
-                      }`}
-                    >
-                      {category.icon} {category.title}
-                    </Button>
-                  ),
-                )}
+                {(
+                  Object.entries(voucherCategories) as [string, Category][]
+                ).map(([key, category]) => (
+                  <Button
+                    key={key}
+                    variant={selectedCategory === key ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(key)}
+                    className={`${
+                      selectedCategory === key
+                        ? "bg-red-600 text-white"
+                        : "bg-slate-800/50 text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    {category.icon} {category.title}
+                  </Button>
+                ))}
               </div>
 
               {/* Vouchers Grid */}

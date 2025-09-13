@@ -80,7 +80,15 @@ export const fetchVouchers = async (): Promise<Voucher[]> => {
  */
 export const getUserPoints = async (userId: string): Promise<number> => {
   if (!supabase) {
-    throw new Error("Supabase not configured");
+    // Local fallback: read points from localStorage
+    try {
+      const key = `ecosort_local_points_${userId}`;
+      const raw = localStorage.getItem(key);
+      return raw ? Number(raw) : 0;
+    } catch (e) {
+      console.warn("Local getUserPoints failed", e);
+      return 0;
+    }
   }
 
   const { data, error } = await supabase
@@ -236,7 +244,35 @@ export const recordTransaction = async (
   },
 ): Promise<UserTransaction> => {
   if (!supabase) {
-    throw new Error("Supabase not configured");
+    // Local fallback: persist to localStorage
+    try {
+      const key = `ecosort_local_transactions_${userId}`;
+      const raw = localStorage.getItem(key);
+      const list = raw ? JSON.parse(raw) : [];
+      const item = {
+        id: `local-${Date.now()}`,
+        user_id: userId,
+        type: transaction.type,
+        points: transaction.points,
+        description: transaction.description,
+        metadata: transaction.metadata || {},
+        created_at: new Date().toISOString(),
+      };
+      list.unshift(item);
+      localStorage.setItem(key, JSON.stringify(list));
+      return {
+        id: item.id,
+        userId: item.user_id,
+        type: item.type,
+        points: item.points,
+        description: item.description,
+        metadata: item.metadata,
+        createdAt: item.created_at,
+      };
+    } catch (e) {
+      console.warn("Local recordTransaction failed", e);
+      throw e;
+    }
   }
 
   const { data, error } = await supabase
@@ -274,7 +310,23 @@ export const awardPoints = async (
   metadata?: Record<string, any>,
 ): Promise<void> => {
   if (!supabase) {
-    throw new Error("Supabase not configured");
+    // Local fallback: increment local points and record transaction
+    try {
+      const key = `ecosort_local_points_${userId}`;
+      const current = Number(localStorage.getItem(key) || "0");
+      localStorage.setItem(key, String(current + points));
+
+      await recordTransaction(userId, {
+        type: "earned",
+        points,
+        description,
+        metadata,
+      });
+      return;
+    } catch (e) {
+      console.warn("Local awardPoints failed:", e);
+      return;
+    }
   }
 
   try {
