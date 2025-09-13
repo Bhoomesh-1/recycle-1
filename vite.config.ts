@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     // Mount Express API during dev so /api routes work
-    ((() => {
+    (() => {
       const plugin: Plugin = {
         name: "express-api-dev",
         configureServer(vite) {
@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => ({
         },
       };
       return plugin;
-    })()),
+    })(),
     react(),
   ],
   resolve: {

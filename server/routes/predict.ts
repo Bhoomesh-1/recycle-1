@@ -29,10 +29,13 @@ export const handlePredict: RequestHandler = async (req, res) => {
       // Read the raw incoming body into a buffer
       const chunks: Buffer[] = [];
       for await (const chunk of req) {
-        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : Buffer.from(chunk));
+        chunks.push(
+          typeof chunk === "string" ? Buffer.from(chunk) : Buffer.from(chunk),
+        );
       }
       const bodyBuffer = Buffer.concat(chunks);
-      if (!headers["content-length"]) headers["content-length"] = String(bodyBuffer.length);
+      if (!headers["content-length"])
+        headers["content-length"] = String(bodyBuffer.length);
 
       const t0 = Date.now();
       // Send to external model
@@ -49,9 +52,17 @@ export const handlePredict: RequestHandler = async (req, res) => {
 
       if (!resp.ok) {
         const text = respCT.includes("application/json")
-          ? (() => { try { return JSON.parse(buf.toString("utf-8")); } catch { return buf.toString("utf-8"); } })()
+          ? (() => {
+              try {
+                return JSON.parse(buf.toString("utf-8"));
+              } catch {
+                return buf.toString("utf-8");
+              }
+            })()
           : buf.toString("utf-8");
-        return res.status(resp.status).json({ error: "upstream_error", details: text });
+        return res
+          .status(resp.status)
+          .json({ error: "upstream_error", details: text });
       }
 
       if (respCT.includes("application/json")) {
@@ -62,12 +73,29 @@ export const handlePredict: RequestHandler = async (req, res) => {
           const normalize = (data: any) => {
             // HuggingFace-style array [{label, score}]
             if (Array.isArray(data) && data.length && data[0].label) {
-              const top = [...data].sort((a,b)=> (b.score ?? 0) - (a.score ?? 0))[0];
-              return { class: String(top.label), confidence: Number(top.score) };
+              const top = [...data].sort(
+                (a, b) => (b.score ?? 0) - (a.score ?? 0),
+              )[0];
+              return {
+                class: String(top.label),
+                confidence: Number(top.score),
+              };
             }
             // Common shapes
-            const cls = data.class || data.prediction || data.label || data.category || data.type || data.class_name || data.predicted_class;
-            const conf = data.confidence ?? data.probability ?? data.score ?? data.conf ?? data.p;
+            const cls =
+              data.class ||
+              data.prediction ||
+              data.label ||
+              data.category ||
+              data.type ||
+              data.class_name ||
+              data.predicted_class;
+            const conf =
+              data.confidence ??
+              data.probability ??
+              data.score ??
+              data.conf ??
+              data.p;
             if (cls) {
               return { class: String(cls), confidence: Number(conf ?? 0.9) };
             }
@@ -77,14 +105,25 @@ export const handlePredict: RequestHandler = async (req, res) => {
           };
 
           const norm = normalize(raw);
-          return res.json({ class: norm.class, confidence: norm.confidence, processingTime: elapsed });
+          return res.json({
+            class: norm.class,
+            confidence: norm.confidence,
+            processingTime: elapsed,
+          });
         } catch (e) {
-          console.warn("Proxy JSON parse failed, returning raw buffer", (e as any)?.message || e);
+          console.warn(
+            "Proxy JSON parse failed, returning raw buffer",
+            (e as any)?.message || e,
+          );
         }
       }
 
       // Non-JSON: return as-is with generic success
-      return res.json({ class: "recyclable", confidence: 0.9, processingTime: elapsed });
+      return res.json({
+        class: "recyclable",
+        confidence: 0.9,
+        processingTime: elapsed,
+      });
     }
 
     // Fallback mock when no external URL configured

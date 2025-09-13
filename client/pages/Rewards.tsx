@@ -771,22 +771,22 @@ export default function Rewards() {
                 >
                   All Categories
                 </Button>
-                {(Object.entries(voucherCategories) as [string, Category][]).map(
-                  ([key, category]) => (
-                    <Button
-                      key={key}
-                      variant={selectedCategory === key ? "default" : "outline"}
-                      onClick={() => setSelectedCategory(key)}
-                      className={`${
-                        selectedCategory === key
-                          ? "bg-red-600 text-white"
-                          : "bg-slate-800/50 text-gray-300 hover:text-white"
-                      }`}
-                    >
-                      {category.icon} {category.title}
-                    </Button>
-                  ),
-                )}
+                {(
+                  Object.entries(voucherCategories) as [string, Category][]
+                ).map(([key, category]) => (
+                  <Button
+                    key={key}
+                    variant={selectedCategory === key ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(key)}
+                    className={`${
+                      selectedCategory === key
+                        ? "bg-red-600 text-white"
+                        : "bg-slate-800/50 text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    {category.icon} {category.title}
+                  </Button>
+                ))}
               </div>
 
               {/* Vouchers Grid */}

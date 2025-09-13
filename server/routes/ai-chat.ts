@@ -18,7 +18,8 @@ export const aiChatHandler: RequestHandler = async (req, res) => {
       const lastUser = [...messages].reverse().find((m) => m.role === "user");
       const userText = (lastUser?.content || "").trim();
       const ctx = (system || "").trim();
-      const snippet = userText.length > 140 ? userText.slice(0, 140) + "…" : userText;
+      const snippet =
+        userText.length > 140 ? userText.slice(0, 140) + "…" : userText;
       const prefix = ctx ? "Thanks for the update. " : "Thanks. ";
       const tail =
         "We'll handle this shortly and keep you posted. If anything changes, reply here.";
@@ -59,7 +60,10 @@ export const aiChatHandler: RequestHandler = async (req, res) => {
       const reply: string = data?.choices?.[0]?.message?.content ?? "";
       return res.json({ reply: reply || makeFallback() });
     } catch (e) {
-      console.warn("OpenAI call error, using fallback:", (e as any)?.message || e);
+      console.warn(
+        "OpenAI call error, using fallback:",
+        (e as any)?.message || e,
+      );
       return res.json({ reply: makeFallback() });
     }
   } catch (err: any) {
