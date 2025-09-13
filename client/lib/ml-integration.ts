@@ -19,7 +19,7 @@ export async function classifyWaste(file: File): Promise<ClassificationResult> {
     (import.meta as any)?.env?.VITE_ML_API_ENDPOINT ||
     (typeof process !== "undefined" &&
       (process as any)?.env?.NEXT_PUBLIC_BACKEND_URL) ||
-    "https://recycling-hub-model-backend-1.onrender.com/predict";
+    "https://koushik-backend-3jxv.onrender.com";
 
   const formData = new FormData();
   formData.append("file", file);
