@@ -13,7 +13,11 @@ export const handlePredict: RequestHandler = async (req, res) => {
       const resp = await fetch(external, {
         method: "POST",
         headers,
+        // Forward the incoming multipart stream directly
         body: req as any,
+        // Node.js fetch requires duplex when streaming a request body
+        // @ts-expect-error Node fetch option
+        duplex: "half",
       });
 
       // Forward status and body transparently
