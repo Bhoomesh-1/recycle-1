@@ -58,14 +58,16 @@ function mapBackendClass(predicted: string): ClassificationResult["type"] {
   const key = (predicted || "").toLowerCase().trim();
 
   // Normalize common synonyms from external services
-  if ([
-    "bio",
-    "biodegradable",
-    "organic",
-    "organic waste",
-    "food",
-    "compostable",
-  ].includes(key)) {
+  if (
+    [
+      "bio",
+      "biodegradable",
+      "organic",
+      "organic waste",
+      "food",
+      "compostable",
+    ].includes(key)
+  ) {
     return "biodegradable";
   }
 
