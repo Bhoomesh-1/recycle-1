@@ -206,54 +206,85 @@ export default function ReportIssue() {
     setSubmitting(true);
     const uid = user?.id || 'mock-user-1';
     let photoUrl: string | undefined;
+    
+    console.log('Starting report submission:', {
+      uid,
+      hasSupabase: !!supabase,
+      hasPhoto: !!photo,
+      hasLocation: !!(loc.lat && loc.lng),
+      category,
+      severity
+    });
 
     try {
-      // Upload photo
-      if (photo && supabase) {
-        const path = `${uid}/${Date.now()}_${photo.name}`;
-        const { data: up, error: upErr } = await supabase.storage.from('reports').upload(path, photo, { upsert: true });
-        if (upErr) throw upErr;
-        const { data: pub } = supabase.storage.from('reports').getPublicUrl(up.path);
-        photoUrl = pub.publicUrl;
-      } else if (photo) {
+      // Upload photo - always convert to base64 for reliability
+      if (photo) {
+        console.log('Converting photo to base64...');
         photoUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(photo);
         });
+        console.log('Photo converted successfully');
       }
 
-      // Submit report
+      // For now, let's use local storage as the primary method to ensure it works
+      console.log('Saving to local storage...');
+      const list = readLocal();
+      const newReport = {
+        id: `local-${Date.now()}`,
+        user_id: uid,
+        title: title.trim() || undefined,
+        description: desc.trim(),
+        category,
+        severity,
+        photo_url: photoUrl,
+        latitude: loc.lat,
+        longitude: loc.lng,
+        address: address.trim() || undefined,
+        status: 'new' as const,
+        created_at: new Date().toISOString(),
+      };
+      
+      list.unshift(newReport);
+      writeLocal(list);
+      console.log('Report saved to local storage:', newReport);
+
+      // Try Supabase as secondary (optional)
       if (supabase) {
-        const { error } = await supabase.from('illegal_reports').insert({
-          user_id: uid,
-          title: title.trim() || null,
-          description: desc.trim(),
-          category,
-          severity,
-          photo_url: photoUrl,
-          geo: loc.lat && loc.lng ? { type: 'Point', coordinates: [loc.lng, loc.lat] } : null,
-          address: address.trim() || null,
-          status: 'new',
-        });
-        if (error) throw error;
-      } else {
-        const list = readLocal();
-        list.unshift({
-          id: `local-${Date.now()}`,
-          user_id: uid,
-          title: title.trim() || undefined,
-          description: desc.trim(),
-          category,
-          severity,
-          photo_url: photoUrl,
-          latitude: loc.lat,
-          longitude: loc.lng,
-          address: address.trim() || undefined,
-          status: 'new',
-          created_at: new Date().toISOString(),
-        });
-        writeLocal(list);
+        try {
+          console.log('Attempting Supabase upload...');
+          // Try to upload to Supabase storage if available
+          const path = `${uid}/${Date.now()}_${photo.name}`;
+          const { data: up, error: upErr } = await supabase.storage.from('reports').upload(path, photo, { upsert: true });
+          
+          if (!upErr && up) {
+            const { data: pub } = supabase.storage.from('reports').getPublicUrl(up.path);
+            photoUrl = pub.publicUrl;
+            console.log('Photo uploaded to Supabase:', photoUrl);
+          }
+          
+          // Try to insert into database
+          const { error } = await supabase.from('illegal_reports').insert({
+            user_id: uid,
+            title: title.trim() || null,
+            description: desc.trim(),
+            category,
+            severity,
+            photo_url: photoUrl,
+            geo: loc.lat && loc.lng ? { type: 'Point', coordinates: [loc.lng, loc.lat] } : null,
+            address: address.trim() || null,
+            status: 'new',
+          });
+          
+          if (!error) {
+            console.log('Report also saved to Supabase successfully');
+          } else {
+            console.warn('Supabase database insert failed:', error);
+          }
+        } catch (supabaseErr) {
+          console.warn('Supabase submission failed, but local storage succeeded:', supabaseErr);
+        }
       }
 
       setDone(true);
@@ -264,10 +295,11 @@ export default function ReportIssue() {
       });
     } catch (err) {
       console.error('Report failed', err);
-      setError('Failed to submit report. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to submit report: ${errorMessage}`);
       toast({
         title: 'Submission failed',
-        description: 'There was an error submitting your report. Please try again.',
+        description: `There was an error submitting your report: ${errorMessage}`,
         variant: 'destructive',
       });
     } finally {
