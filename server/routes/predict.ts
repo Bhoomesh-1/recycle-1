@@ -6,6 +6,7 @@ export const handlePredict: RequestHandler = async (req, res) => {
   try {
     const external = process.env.EXTERNAL_PREDICT_URL;
     if (external) {
+      // Build headers to forward (excluding hop-by-hop headers)
       const headers: Record<string, string> = {};
       const hopByHop = new Set([
         "connection",
@@ -25,21 +26,25 @@ export const handlePredict: RequestHandler = async (req, res) => {
         else if (Array.isArray(v)) headers[k] = v.join(", ");
       }
 
+      // Read the raw incoming body into a buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : Buffer.from(chunk));
+      }
+      const bodyBuffer = Buffer.concat(chunks);
+      if (!headers["content-length"]) headers["content-length"] = String(bodyBuffer.length);
+
+      // Send to external model
       const resp = await fetch(external, {
         method: "POST",
         headers,
-        // Forward the incoming multipart stream directly
-        body: req as any,
-        // Node.js fetch requires duplex when streaming a request body
-        // @ts-expect-error Node fetch option
-        duplex: "half",
+        body: bodyBuffer,
         redirect: "follow",
       });
 
       // Forward status and body transparently
       const buf = Buffer.from(await resp.arrayBuffer());
       res.status(resp.status);
-      // Try to forward JSON if possible; else send raw
       const respCT = resp.headers.get("content-type") || "";
       if (respCT.includes("application/json")) {
         try {
